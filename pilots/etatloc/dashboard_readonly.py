@@ -23,7 +23,7 @@ if __name__ == "__main__":
     cfg = root / "harvey.local.yaml"
     if cfg.exists():
         raise SystemExit("BLOCK: local override exists; clean demo checkout required.")
-    from pilots.etatloc.preflight import check
+    from preflight import check
     errors = check(root / "pilots" / "etatloc" / "harvey.yaml")
     if errors:
         raise SystemExit("BLOCK: " + "; ".join(errors))
