@@ -53,3 +53,26 @@ isolé validé et une configuration de l'application indépendante de la product
 
 Les tests GitHub sur Ubuntu 3.12 exécutent les mêmes scripts et publient le
 CSV fictif dans l'artefact `etatloc-qualification-demo` (conservation 7 jours).
+
+## Aperçu du vrai tableau de bord (local, lecture seule)
+Dans une **nouvelle copie dédiée** du dépôt, après une CI verte :
+```powershell
+git clone --branch security/docker-isolation https://github.com/Guillaume59160/harvey.git harvey-etatloc-preview
+cd harvey-etatloc-preview
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe pilots/etatloc/dashboard_readonly.py
+```
+Ouvrir dans le navigateur le **lien privé affiché** par le programme.
+Le service écoute uniquement sur `127.0.0.1:5555`. Aucun agent autonome
+n'est démarré, aucune messagerie configurée et toute requête de modification
+est bloquée par HTTP 403. Une liste blanche limite également les API GET de
+la démonstration. L'interface d'origine peut encore afficher des boutons non
+opérationnels ; cet aperçu n'est donc pas une instance Harvey complète.
+Pour arrêter : Ctrl+C dans le terminal.
+
+**Sécurité :** exécuter uniquement dans une copie de travail vide, sans `.env`,
+`data/harvey.db` ni `harvey.local.yaml`. Ne jamais ouvrir de tunnel, de
+redirection de port ou de proxy. Cette option locale ne garantit pas une
+isolation réseau au niveau système ; l'accès Internet de la machine reste
+possible, même si le serveur de démonstration ne lance aucun agent.
