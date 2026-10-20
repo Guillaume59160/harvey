@@ -146,6 +146,10 @@ class Sender:
             await self.state.update_campaign(campaign.id, status="failed")
             return
 
+        if await self.state.get_setting(KILL_SWITCH_KEY):
+            logger.warning("Sender: paused before Instantly campaign creation.")
+            return
+
         # 1. Create campaign in Instantly — or resume one from a previous
         # partially-failed deploy. Never create a duplicate.
         campaign_id = campaign.instantly_campaign_id
@@ -273,6 +277,9 @@ class Sender:
             for p in prospects
         ]
 
+        if await self.state.get_setting(KILL_SWITCH_KEY):
+            logger.warning("Sender: paused before uploading leads to Instantly.")
+            return
         result = await self.instantly.add_leads(campaign_id, leads)
         if result is None:
             logger.error(f"Sender: Failed to add leads to campaign {campaign_id}")
