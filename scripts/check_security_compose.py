@@ -9,7 +9,7 @@ This script only validates config; it does not deploy anything.
 import json
 import os
 import sys
-from pathlib import Path
+from pathlib import PurePosixPath
 
 
 def validate(config: dict, expected_auth: str) -> list[str]:
@@ -40,7 +40,7 @@ def validate(config: dict, expected_auth: str) -> list[str]:
             errors.append("Docker socket mount prohibited")
     if len(claude) != 1 or claude[0] != expected_auth:
         errors.append("Claude mount must resolve to exactly the dedicated directory")
-    if not Path(expected_auth).is_absolute():
+    if not PurePosixPath(expected_auth).is_absolute():
         errors.append("Dedicated Claude directory must be absolute")
     return errors
 
