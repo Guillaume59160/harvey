@@ -33,3 +33,23 @@ EspoCRM : créer plus tard un connecteur *avec prévisualisation et validation h
 
 ## Limites
 La configuration n'active pas un mode `dry-run` universel. Les commandes de recherche, d'entraînement et de découverte peuvent consulter des sites ou facturer des API. Les essais sans egress doivent utiliser des simulations/local mocks. Vérifier les obligations RGPD avant un pilote sur de vraies personnes.
+
+## Exécution hors ligne sur un PC Windows (après validation CI)
+Dans PowerShell (Git et Python 3.12 installés) :
+
+```powershell
+git clone --branch security/docker-isolation https://github.com/Guillaume59160/harvey.git harvey-etatloc-demo
+cd harvey-etatloc-demo
+powershell -ExecutionPolicy Bypass -File pilots/etatloc/run-demo.ps1
+```
+
+Le script crée un environnement Python local, installe PyYAML, contrôle la
+configuration sans envoi, puis génère `pilots/etatloc/qualification_demo.csv`.
+Il **ne lance pas Harvey** ni le tableau de bord, et n'effectue aucune
+prospection. La récupération du dépôt et l'installation de PyYAML nécessitent
+un accès Internet; la qualification elle-même n'effectue aucun accès réseau.
+Pour accéder au vrai tableau de bord Harvey, il faudra ensuite un environnement
+isolé validé et une configuration de l'application indépendante de la production.
+
+Les tests GitHub sur Ubuntu 3.12 exécutent les mêmes scripts et publient le
+CSV fictif dans l'artefact `etatloc-qualification-demo` (conservation 7 jours).
