@@ -87,3 +87,36 @@ jobs:
           assert not svc.get('privileged', False)
           print('PASS: hardened Compose resolved without launching Harvey')
           PY
+
+  harvey-image-offline-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Harvey image (no credentials)
+        run: docker build --tag harvey-etatloc-ci:local .
+      - name: Exercise real image with networking disabled and demo configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --pids-limit 128 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m \
+            --mount type=bind,src="$PWD/pilots/etatloc/harvey.yaml",dst=/app/harvey.yaml,readonly \
+            --entrypoint python harvey-etatloc-ci:local -c '
+          import os, socket, yaml
+          from harvey.config import EmailChannelConfig
+          assert os.geteuid() != 0
+          with open("/app/harvey.yaml", encoding="utf-8") as f:
+              cfg = yaml.safe_load(f)
+          assert cfg["channels"]["email"]["enabled"] is False
+          assert cfg["channels"]["email"]["max_daily_sends"] == 0
+          assert cfg["channels"]["linkedin"]["enabled"] is False
+          for host in ("169.254.169.254", "10.0.0.1", "1.1.1.1"):
+              try:
+                  with socket.create_connection((host, 443), timeout=1):
+                      raise RuntimeError("Unexpected network connection to " + host)
+              except OSError:
+                  pass
+          print("PASS: actual Harvey image loads Etatloc configuration with no egress")
+          '
