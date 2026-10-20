@@ -35,3 +35,13 @@ async def test_native_run_respects_pause_before_staging():
     await sender.run()
     sender._run_native.assert_not_awaited()
     state.get_setting.assert_awaited_with(KILL_SWITCH_KEY)
+
+@pytest.mark.asyncio
+async def test_instantly_requires_explicit_autopilot_opt_in():
+    sender, state = make_sender("instantly")
+    state.get_setting.return_value = None
+    sender.config.channels.email.require_approval = True
+    sender._deploy_campaign = AsyncMock()
+    await sender.run()
+    state.get_campaigns_by_status.assert_not_awaited()
+    sender._deploy_campaign.assert_not_awaited()
