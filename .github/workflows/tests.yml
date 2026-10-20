@@ -33,6 +33,19 @@ jobs:
         run: python -m pip install -e ".[dev]" "setuptools>=68" wheel
       - name: Unit, integration, end-to-end and soak tests
         run: python -m pytest -q
+      - name: Etatloc demo offline qualification (no network calls)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        run: |
+          python pilots/etatloc/preflight.py
+          python pilots/etatloc/qualify_demo.py
+      - name: Publish Etatloc fictional qualification CSV
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: etatloc-qualification-demo
+          path: pilots/etatloc/qualification_demo.csv
+          if-no-files-found: error
+          retention-days: 7
       - name: Installed wheel (scripted Codex CLI on PATH)
         if: runner.os != 'Windows'
         env:
