@@ -45,3 +45,26 @@ async def test_instantly_requires_explicit_autopilot_opt_in():
     await sender.run()
     state.get_campaigns_by_status.assert_not_awaited()
     sender._deploy_campaign.assert_not_awaited()
+
+@pytest.mark.asyncio
+async def test_native_drain_stops_when_paused_before_processing():
+    sender, state = make_sender("smtp")
+    sender.provider = SimpleNamespace(
+        name="fake", is_configured=lambda: True, send_email=AsyncMock()
+    )
+    sender.config.channels.email.max_daily_sends = 5
+    state.get_setting.return_value = "paused"
+    state.count_outbox_sent_today = AsyncMock(return_value=0)
+    state.get_outbox = AsyncMock(return_value=[{"id": 1, "kind": "sequence"}])
+    await sender._drain_due()
+    sender.provider.send_email.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_instantly_retry_activation_checks_pause():
+    sender, state = make_sender("instantly")
+    state.get_setting.return_value = "paused"
+    sender.instantly.activate_campaign = AsyncMock()
+    # The early guard must hold even when no provider work has begun.
+    await sender.run()
+    sender.instantly.activate_campaign.assert_not_awaited()
