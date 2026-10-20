@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, security/docker-isolation]
 
 permissions:
   contents: read
@@ -33,6 +33,37 @@ jobs:
         run: python -m pip install -e ".[dev]" "setuptools>=68" wheel
       - name: Unit, integration, end-to-end and soak tests
         run: python -m pytest -q
+      - name: Etatloc demo offline qualification (no network calls)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        run: |
+          python pilots/etatloc/preflight.py
+          python pilots/etatloc/qualify_demo.py
+      - name: Publish Etatloc fictional qualification CSV
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: etatloc-qualification-demo
+          path: pilots/etatloc/qualification_demo.csv
+          if-no-files-found: error
+          retention-days: 7
+      - name: Etatloc dashboard read-only HTTP smoke (localhost only)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python pilots/etatloc/dashboard_readonly.py > /tmp/etatloc-dashboard.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:5555/ > /dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/etatloc-dashboard.log; exit 1; fi
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:5555/api/harvey/start)" = "403"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5555/api/companies)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5555/api/usage)" = "403"
+          echo "PASS: local demo serves actual Harvey shell and blocks mutations"
       - name: Installed wheel (scripted Codex CLI on PATH)
         if: runner.os != 'Windows'
         env:
@@ -45,3 +76,65 @@ jobs:
         run: |
           npm install -g @openai/codex@0.159.3
           python -m pytest -q tests/test_codex_cli_surface.py
+
+  docker-network-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify throwaway Docker network namespace is offline
+        run: bash scripts/smoke_docker_network_none.sh
+
+  compose-hardening:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check resolved hardened Compose without starting services
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/harvey-ci-dedicated-claude
+          touch .env
+          export HARVEY_CLAUDE_AUTH_DIR=/tmp/harvey-ci-dedicated-claude
+          docker compose -f docker-compose.yml -f docker-compose.security.yml config --format json > /tmp/harvey-ci-compose.json
+          python scripts/check_security_compose.py < /tmp/harvey-ci-compose.json
+          python - <<'PY'
+          import json
+          with open('/tmp/harvey-ci-compose.json') as f:
+              svc = json.load(f)['services']['harvey']
+          assert not svc.get('ports'), 'Harvey publishes a port unexpectedly'
+          assert not svc.get('privileged', False)
+          print('PASS: hardened Compose resolved without launching Harvey')
+          PY
+
+  harvey-image-offline-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Harvey image (no credentials)
+        run: docker build --tag harvey-etatloc-ci:local .
+      - name: Exercise real image with networking disabled and demo configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --pids-limit 128 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m \
+            --mount type=bind,src="$PWD/pilots/etatloc/harvey.yaml",dst=/app/harvey.yaml,readonly \
+            --entrypoint python harvey-etatloc-ci:local -c '
+          import os, socket, yaml
+          from harvey.config import EmailChannelConfig
+          assert os.geteuid() != 0
+          with open("/app/harvey.yaml", encoding="utf-8") as f:
+              cfg = yaml.safe_load(f)
+          assert cfg["channels"]["email"]["enabled"] is False
+          assert cfg["channels"]["email"]["max_daily_sends"] == 0
+          assert cfg["channels"]["linkedin"]["enabled"] is False
+          for host in ("169.254.169.254", "10.0.0.1", "1.1.1.1"):
+              try:
+                  with socket.create_connection((host, 443), timeout=1):
+                      raise RuntimeError("Unexpected network connection to " + host)
+              except OSError:
+                  pass
+          print("PASS: actual Harvey image loads Etatloc configuration with no egress")
+          '

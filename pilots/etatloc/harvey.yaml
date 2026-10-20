@@ -1,0 +1,68 @@
+# PILOTE ÉTATLOC — configuration de démonstration UNIQUEMENT
+# Copier vers un environnement isolé pour l'essai. Ne remplace pas la
+# configuration de production ; ne pas connecter de messagerie réelle.
+persona:
+  name: "Équipe Étatloc (démo)"
+  company: "Étatloc"
+  role: "Présentation produit"
+  email: "demo@etatloc.example"
+  linkedin: ""
+  tone: "professionnel, clair, respectueux, sans promesses non vérifiées"
+product:
+  name: "Étatloc"
+  description: "Outil d'états des lieux avec photos, documents et suivi des incidents et interventions, selon les fonctionnalités effectivement disponibles."
+  pricing: "Tarifs à confirmer — ne pas annoncer de prix"
+  key_benefits:
+    - "Préparation et réalisation d'états des lieux"
+    - "Organisation des documents et des rappels"
+    - "Suivi des incidents et échanges entre intervenants selon les droits"
+  objection_responses:
+    "already have a solution": "Quel usage souhaiteriez-vous simplifier dans votre logiciel actuel ?"
+    "too expensive": "Nous pouvons d'abord analyser les fonctionnalités dont vous avez besoin."
+    "not interested": "Bien reçu, aucun suivi commercial ne sera engagé."
+  offer:
+    primary: "Présentation des fonctionnalités disponibles"
+    entry: "Démonstration sur logement fictif"
+    goal: "book_call"
+    booking_method: "suggest_times"
+    booking_url: ""
+    meeting_duration: "20 minutes"
+    meeting_owner: "Équipe Étatloc"
+icp:
+  industries:
+    - "Gestion locative"
+    - "Agences immobilières"
+    - "Administrateurs de biens"
+    - "Conciergeries locatives"
+  company_size: "1-30 salariés"
+  titles:
+    - "Dirigeant"
+    - "Responsable gestion locative"
+    - "Gestionnaire locatif"
+  geography:
+    - "Lille, Hauts-de-France, France"
+  hiring_signals: []
+channels:
+  email:
+    enabled: false
+    provider: "gmail"
+    max_daily_sends: 0
+    require_approval: true
+    send_to_risky: false
+    max_bounce_rate: 0.05
+  linkedin:
+    enabled: false
+    max_daily_connections: 0
+    max_daily_messages: 0
+usage:
+  max_daily_claude_percent: 10
+  heartbeat_interval_minutes: 60
+  quiet_hours:
+    start: "20:00"
+    end: "08:00"
+    timezone: "Europe/Paris"
+compliance:
+  precleared:
+    enabled: false
+    sender_country: ""
+    address_source: "unknown"

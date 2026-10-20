@@ -18,6 +18,8 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
+from harvey.collectors.url_guard import check_public_url
+
 from harvey.collectors.discover import (
     name_from_domain, name_matches_domain, site_name_from_html,
 )
@@ -238,7 +240,7 @@ class ProfileCollector:
 
     async def __aenter__(self):
         self._client = httpx.AsyncClient(
-            timeout=TIMEOUT, follow_redirects=True,
+            timeout=TIMEOUT, follow_redirects=False, trust_env=False,
             headers={"User-Agent": random.choice(USER_AGENTS),
                      "Accept": "text/html,application/xhtml+xml,*/*;q=0.8"},
         )
@@ -249,17 +251,35 @@ class ProfileCollector:
             await self._client.aclose()
 
     async def _get(self, url: str) -> str:
+        # Never automatically follow redirects to internal services. DNS checks
+        # are defence-in-depth; a network egress policy is also required to
+        # prevent DNS rebinding between resolution and connection.
         try:
-            resp = await self._client.get(url)
-        except (httpx.HTTPError, ValueError) as e:
-            logger.debug(f"fetch failed {url}: {e}")
-            return ""
-        if resp.status_code != 200:
-            return ""
-        ctype = resp.headers.get("content-type", "")
-        if "html" not in ctype and "xml" not in ctype and "text" not in ctype:
-            return ""
-        return resp.text
+            for _ in range(4):
+                await check_public_url(url)
+                async with self._client.stream("GET", url) as resp:
+                    if resp.status_code in (301, 302, 303, 307, 308):
+                        location = resp.headers.get("location")
+                        if not location:
+                            return ""
+                        url = urljoin(url, location)
+                        continue
+                    if resp.status_code != 200:
+                        return ""
+                    ctype = resp.headers.get("content-type", "").lower()
+                    if not any(x in ctype for x in ("html", "xml", "text")):
+                        return ""
+                    # Bound the bytes read before parsing hostile web content.
+                    buf = bytearray()
+                    async for chunk in resp.aiter_bytes():
+                        buf.extend(chunk)
+                        if len(buf) > 2_000_000:
+                            logger.warning("Profile page exceeds 2MB limit")
+                            return ""
+                    return bytes(buf).decode(resp.encoding or "utf-8", errors="replace")
+        except (httpx.HTTPError, ValueError, UnicodeError) as e:
+            logger.debug("profile fetch blocked/failed: %s", e)
+        return ""
 
     async def _resolve_site(self, domain: str) -> tuple[str, str]:
         """Return (working base url, homepage html), or ("", "") if none work.

@@ -81,8 +81,21 @@ class Sender:
             logger.info("Sender: Email channel disabled. Skipping.")
             return
 
+        # Fail closed for both native mail and Instantly. Previously the
+        # persistent pause was only enforced in _run_native().
+        paused = await self.state.get_setting(KILL_SWITCH_KEY)
+        if paused:
+            logger.warning("Sender: sending paused (%s); skipping all providers.", paused)
+            return
+
         if self.is_native:
             await self._run_native()
+            return
+
+        # Instantly bypasses the native approval outbox. Fail closed rather
+        # than silently sending campaigns that were never human-approved.
+        if getattr(self.config.channels.email, "require_approval", True):
+            logger.warning("Sender: Instantly disabled while human approval is required.")
             return
 
         logger.info("Sender: Checking for campaigns to deploy...")
@@ -131,6 +144,10 @@ class Sender:
         # 0. Validate before touching the network
         if not self._validate_sequence(campaign):
             await self.state.update_campaign(campaign.id, status="failed")
+            return
+
+        if await self.state.get_setting(KILL_SWITCH_KEY):
+            logger.warning("Sender: paused before Instantly campaign creation.")
             return
 
         # 1. Create campaign in Instantly — or resume one from a previous
@@ -228,6 +245,9 @@ class Sender:
                 logger.info(
                     f"Sender: Leads for '{campaign.name}' already staged. Retrying activation."
                 )
+                if await self.state.get_setting(KILL_SWITCH_KEY):
+                    logger.warning("Sender: paused before retrying Instantly activation.")
+                    return
                 if await self.instantly.activate_campaign(campaign_id) is not None:
                     await self.state.update_campaign(campaign.id, status="active")
                     logger.info(f"Sender: Campaign '{campaign.name}' activated on retry.")
@@ -260,6 +280,9 @@ class Sender:
             for p in prospects
         ]
 
+        if await self.state.get_setting(KILL_SWITCH_KEY):
+            logger.warning("Sender: paused before uploading leads to Instantly.")
+            return
         result = await self.instantly.add_leads(campaign_id, leads)
         if result is None:
             logger.error(f"Sender: Failed to add leads to campaign {campaign_id}")
@@ -271,7 +294,11 @@ class Sender:
         for prospect in prospects:
             await self.state.update_prospect_status(prospect.id, "contacted")
 
-        # 4. Activate campaign
+        # 4. Activate campaign. Recheck pause in case an operator stopped
+        # sending while the campaign was being prepared.
+        if await self.state.get_setting(KILL_SWITCH_KEY):
+            logger.warning("Sender: sending paused before Instantly activation.")
+            return
         result = await self.instantly.activate_campaign(campaign_id)
         if result is None:
             logger.error(
@@ -467,6 +494,10 @@ class Sender:
         for item in due:
             if sent >= budget:
                 break
+            # Honour an operator pause even during a long drain cycle.
+            if await self.state.get_setting(KILL_SWITCH_KEY):
+                logger.warning("Sender: sending paused while draining outbox.")
+                break
             needs_check = self.precleared is not None and item["kind"] == "sequence"
             if needs_check and compliance_paused:
                 continue
@@ -524,6 +555,11 @@ class Sender:
                     )
                     continue
                 receipt_id = clearance.receipt_id
+
+            # Last-moment check after compliance/recipient validation, before I/O.
+            if await self.state.get_setting(KILL_SWITCH_KEY):
+                logger.warning("Sender: paused immediately before provider send.")
+                break
 
             result = await self.provider.send_email(
                 item["to_email"], item["subject"], item["body"],

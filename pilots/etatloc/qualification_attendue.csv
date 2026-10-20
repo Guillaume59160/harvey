@@ -1,0 +1,11 @@
+company_id,company_name,city,score,priority,reason,synthetic
+DEMO001,Agence Fictive des Tilleuls,Lille,100,haute,gestion locative déclarée dans la simulation; zone métropole lilloise; acteur immobilier cible,oui
+DEMO003,Régie Démo du Parc,Villeneuve-d'Ascq,100,haute,gestion locative déclarée dans la simulation; zone métropole lilloise; acteur immobilier cible,oui
+DEMO004,Agence Test République,Roubaix,100,haute,gestion locative déclarée dans la simulation; zone métropole lilloise; acteur immobilier cible,oui
+DEMO005,Gestion Locative Exemple Nord,Tourcoing,100,haute,gestion locative déclarée dans la simulation; zone métropole lilloise; acteur immobilier cible,oui
+DEMO008,Services Demo Patrimoine,Marcq-en-Barœul,100,haute,gestion locative déclarée dans la simulation; zone métropole lilloise; acteur immobilier cible,oui
+DEMO006,Conciergerie Démonstration Lys,Armentières,90,haute,gestion locative déclarée dans la simulation; zone métropole lilloise; conciergerie à qualifier,oui
+DEMO010,Agence Démo du Beffroi,Arras,80,haute,gestion locative déclarée dans la simulation; acteur immobilier cible,oui
+DEMO002,Conciergerie Imaginaire Opale,Boulogne-sur-Mer,70,moyenne,gestion locative déclarée dans la simulation; conciergerie à qualifier,oui
+DEMO009,Conciergerie Prototype Pévèle,Orchies,70,moyenne,gestion locative déclarée dans la simulation; conciergerie à qualifier,oui
+DEMO007,Transactions Fictives Centrale,Lille,40,faible,activité de gestion locative non déclarée; zone métropole lilloise; acteur immobilier cible,oui
