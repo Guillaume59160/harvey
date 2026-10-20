@@ -245,6 +245,9 @@ class Sender:
                 logger.info(
                     f"Sender: Leads for '{campaign.name}' already staged. Retrying activation."
                 )
+                if await self.state.get_setting(KILL_SWITCH_KEY):
+                    logger.warning("Sender: paused before retrying Instantly activation.")
+                    return
                 if await self.instantly.activate_campaign(campaign_id) is not None:
                     await self.state.update_campaign(campaign.id, status="active")
                     logger.info(f"Sender: Campaign '{campaign.name}' activated on retry.")
@@ -552,6 +555,11 @@ class Sender:
                     )
                     continue
                 receipt_id = clearance.receipt_id
+
+            # Last-moment check after compliance/recipient validation, before I/O.
+            if await self.state.get_setting(KILL_SWITCH_KEY):
+                logger.warning("Sender: paused immediately before provider send.")
+                break
 
             result = await self.provider.send_email(
                 item["to_email"], item["subject"], item["body"],
