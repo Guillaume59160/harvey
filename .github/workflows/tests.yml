@@ -65,3 +65,25 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify throwaway Docker network namespace is offline
         run: bash scripts/smoke_docker_network_none.sh
+
+  compose-hardening:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check resolved hardened Compose without starting services
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/harvey-ci-dedicated-claude
+          touch .env
+          export HARVEY_CLAUDE_AUTH_DIR=/tmp/harvey-ci-dedicated-claude
+          docker compose -f docker-compose.yml -f docker-compose.security.yml config --format json > /tmp/harvey-ci-compose.json
+          python scripts/check_security_compose.py < /tmp/harvey-ci-compose.json
+          python - <<'PY'
+          import json
+          with open('/tmp/harvey-ci-compose.json') as f:
+              svc = json.load(f)['services']['harvey']
+          assert not svc.get('ports'), 'Harvey publishes a port unexpectedly'
+          assert not svc.get('privileged', False)
+          print('PASS: hardened Compose resolved without launching Harvey')
+          PY
