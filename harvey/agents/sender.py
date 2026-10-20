@@ -81,6 +81,13 @@ class Sender:
             logger.info("Sender: Email channel disabled. Skipping.")
             return
 
+        # Fail closed for both native mail and Instantly. Previously the
+        # persistent pause was only enforced in _run_native().
+        paused = await self.state.get_setting(KILL_SWITCH_KEY)
+        if paused:
+            logger.warning("Sender: sending paused (%s); skipping all providers.", paused)
+            return
+
         if self.is_native:
             await self._run_native()
             return
@@ -271,7 +278,11 @@ class Sender:
         for prospect in prospects:
             await self.state.update_prospect_status(prospect.id, "contacted")
 
-        # 4. Activate campaign
+        # 4. Activate campaign. Recheck pause in case an operator stopped
+        # sending while the campaign was being prepared.
+        if await self.state.get_setting(KILL_SWITCH_KEY):
+            logger.warning("Sender: sending paused before Instantly activation.")
+            return
         result = await self.instantly.activate_campaign(campaign_id)
         if result is None:
             logger.error(
@@ -466,6 +477,10 @@ class Sender:
         compliance_paused = False
         for item in due:
             if sent >= budget:
+                break
+            # Honour an operator pause even during a long drain cycle.
+            if await self.state.get_setting(KILL_SWITCH_KEY):
+                logger.warning("Sender: sending paused while draining outbox.")
                 break
             needs_check = self.precleared is not None and item["kind"] == "sequence"
             if needs_check and compliance_paused:
