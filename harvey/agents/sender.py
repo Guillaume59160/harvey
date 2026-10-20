@@ -92,6 +92,12 @@ class Sender:
             await self._run_native()
             return
 
+        # Instantly bypasses the native approval outbox. Fail closed rather
+        # than silently sending campaigns that were never human-approved.
+        if getattr(self.config.channels.email, "require_approval", True):
+            logger.warning("Sender: Instantly disabled while human approval is required.")
+            return
+
         logger.info("Sender: Checking for campaigns to deploy...")
         draft_campaigns = await self.state.get_campaigns_by_status("draft")
         if not draft_campaigns:
