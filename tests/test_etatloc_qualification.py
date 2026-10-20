@@ -20,3 +20,13 @@ def test_qualification_of_fictional_companies(tmp_path):
 def test_real_records_are_rejected():
     with pytest.raises(ValueError):
         mod.evaluate({"source":"web","status":"real","website":"https://real.com"})
+
+def test_qualification_matches_reference_csv(tmp_path):
+    generated = tmp_path / "qualification.csv"
+    mod.run(target=generated)
+    expected = BASE / "qualification_attendue.csv"
+    with generated.open(encoding="utf-8", newline="") as fh:
+        actual = list(csv.DictReader(fh))
+    with expected.open(encoding="utf-8", newline="") as fh:
+        reference = list(csv.DictReader(fh))
+    assert actual == reference
