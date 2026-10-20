@@ -58,3 +58,10 @@ jobs:
         run: |
           npm install -g @openai/codex@0.159.3
           python -m pytest -q tests/test_codex_cli_surface.py
+
+  docker-network-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify throwaway Docker network namespace is offline
+        run: bash scripts/smoke_docker_network_none.sh
