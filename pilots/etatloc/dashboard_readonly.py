@@ -44,6 +44,7 @@ if __name__ == "__main__":
         return await call_next(request)
 
     print("Read-only Etatloc demo. Localhost only, no Harvey agent started.")
-    print("Open http://127.0.0.1:5555 — never expose to public network.")
+    print("Open this private unlock link: " + dash.dashboard_url(host="127.0.0.1", port=5555))
+    print("Never share the link or expose the local server to the public network.")
     uvicorn.run(dash.app, host="127.0.0.1", port=5555,
                 proxy_headers=False, server_header=False, date_header=False)
