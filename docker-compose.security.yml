@@ -1,0 +1,15 @@
+# Opt-in hardened deployment. Run: docker compose -f docker-compose.yml -f docker-compose.security.yml up -d --build
+# Before first run, create the host directory under a dedicated account and
+# complete Claude authentication there. Do not copy a shared ~/.claude.
+services:
+  harvey:
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=128m
+    volumes:
+      - ${HARVEY_CLAUDE_AUTH_DIR:?Set a dedicated absolute Claude auth directory}:/home/harvey/.claude
+    # No ports are published by this application.
