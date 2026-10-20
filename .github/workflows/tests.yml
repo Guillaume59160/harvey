@@ -46,6 +46,24 @@ jobs:
           path: pilots/etatloc/qualification_demo.csv
           if-no-files-found: error
           retention-days: 7
+      - name: Etatloc dashboard read-only HTTP smoke (localhost only)
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python pilots/etatloc/dashboard_readonly.py > /tmp/etatloc-dashboard.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:5555/ > /dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/etatloc-dashboard.log; exit 1; fi
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:5555/api/harvey/start)" = "403"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5555/api/companies)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5555/api/usage)" = "403"
+          echo "PASS: local demo serves actual Harvey shell and blocks mutations"
       - name: Installed wheel (scripted Codex CLI on PATH)
         if: runner.os != 'Windows'
         env:
