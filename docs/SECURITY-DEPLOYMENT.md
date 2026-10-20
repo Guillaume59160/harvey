@@ -49,3 +49,20 @@ so making the directory read-only would break authentication.
 5. Revalidate all collectors and outbound integrations for SSRF; the profile
    guard is only a first coverage area.
 6. The host must not expose SSH, Docker or admin APIs to Harvey's egress.
+
+## Étape préliminaire : test du réseau Docker jetable
+
+Sur le runner Ubuntu GitHub, le job `docker-network-smoke` exécute
+`bash scripts/smoke_docker_network_none.sh`. Il lance une image Python
+éphémère, non privilégiée, en `--network none`, sans identifiants ni volumes
+professionnels, puis vérifie l'absence de connexions sortantes. **Il ne
+lance pas Harvey** et ne valide donc ni la politique réseau de la véritable
+instance ni son accès éventuel à des services sur le VPS.
+
+Le véritable Harvey a besoin d'un accès réseau pour découvrir les entreprises,
+profilage et fournisseurs : `--network none` convient uniquement aux essais
+hors ligne. Avant les essais avec réseau, imposer et tester des règles egress
+sur un environnement de staging distinct, bloquer les réseaux privés et
+métadonnées, prévoir la résolution DNS contrôlée et les exceptions strictement
+nécessaires. Ne jamais appliquer une règle globale sans auditer l'impact sur
+Hermes, EspoCRM et les autres conteneurs.
