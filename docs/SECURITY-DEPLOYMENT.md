@@ -28,3 +28,24 @@ so making the directory read-only would break authentication.
   other application-layer vulnerabilities. No production approval implied.
 - Do not publish dashboard ports or Docker socket access. Keep email sending
   disabled pending review.
+
+## Mandatory P0 gates before production
+1. Run all pytest and Docker smoke tests. GitHub Actions currently has no
+   reported workflow runs; code review is not a substitute for a passing CI.
+2. Run the resolved Compose preflight:
+   `docker compose -f docker-compose.yml -f docker-compose.security.yml config --format json | python scripts/check_security_compose.py`
+   Set HARVEY_CLAUDE_AUTH_DIR to a dedicated *absolute* path first.
+3. Block container egress to Docker bridge and host networks, all RFC1918,
+   loopback, link-local, cloud metadata (169.254.169.254), multicast, and
+   IPv6 private/link-local ranges **at the host or network gateway**.
+   Verify this with harmless connectivity tests from staging, including DNS
+   rebinding scenarios. The Python pre-request DNS check is not atomic with
+   connect and does not by itself prevent DNS rebinding. Do not treat a simple
+   Docker container network as a private-address firewall.
+4. Keep outbound email disabled and test with a fake provider. Native delivery
+   and Instantly are distinct paths; Instantly now refuses deployment whenever
+   human approval is required. An external Instantly campaign already active
+   cannot be recalled by Harvey's local kill switch: pause it at the provider.
+5. Revalidate all collectors and outbound integrations for SSRF; the profile
+   guard is only a first coverage area.
+6. The host must not expose SSH, Docker or admin APIs to Harvey's egress.
