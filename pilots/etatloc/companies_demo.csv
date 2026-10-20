@@ -1,0 +1,11 @@
+company_id,company_name,segment,city,employee_band,management_activity,website,status,source,notes
+DEMO001,Agence Fictive des Tilleuls,Agence immobilière,Lille,1-10,oui,https://tilleuls.example,fictif,demo,Documents locatifs à vérifier
+DEMO002,Conciergerie Imaginaire Opale,Conciergerie,Boulogne-sur-Mer,1-10,oui,https://opale.example,fictif,demo,Flux d'intervention à qualifier
+DEMO003,Régie Démo du Parc,Administrateur de biens,Villeneuve-d'Ascq,11-30,oui,https://regieduparc.example,fictif,demo,États des lieux fréquents supposés pour le test
+DEMO004,Agence Test République,Agence immobilière,Roubaix,1-10,oui,https://republique.example,fictif,demo,Entretien de logement
+DEMO005,Gestion Locative Exemple Nord,Administrateur de biens,Tourcoing,11-30,oui,https://exemplenord.example,fictif,demo,Suivi des documents périodiques
+DEMO006,Conciergerie Démonstration Lys,Conciergerie,Armentières,1-10,oui,https://lys.example,fictif,demo,Échanges propriétaires artisans
+DEMO007,Transactions Fictives Centrale,Agence immobilière,Lille,1-10,non,https://transactions.example,fictif,demo,Prospect à exclure si aucune gestion locative
+DEMO008,Services Demo Patrimoine,Administrateur de biens,Marcq-en-Barœul,11-30,oui,https://patrimoine.example,fictif,demo,Historique des incidents
+DEMO009,Conciergerie Prototype Pévèle,Conciergerie,Orchies,1-10,oui,https://pevele.example,fictif,demo,Sous-segment à valider
+DEMO010,Agence Démo du Beffroi,Agence immobilière,Arras,1-10,oui,https://beffroi.example,fictif,demo,Suivi EDL entrée sortie
